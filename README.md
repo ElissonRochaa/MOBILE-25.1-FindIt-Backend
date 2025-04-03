@@ -12,6 +12,7 @@ No terminal, execute:
 
 ```bash
 npm install
+```
 
 ### 3️⃣ Rodar o projeto em desenvolvimento
 
@@ -19,13 +20,18 @@ No terminal, execute:
 
 ```bash
 npm run dev
-
+```
 
 ### 4️⃣ Compilar o TypeScript e rodar o projeto
 
+Para compilar o TypeScript, execute:
+
 ```bash
 npx tsc
-
+```
 
 E depois inicie o servidor com:
+
+```bash
 node dist/index.js
+```
