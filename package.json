@@ -3,12 +3,11 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-"scripts": {
-  "dev": "nodemon --ext ts --exec ts-node src/index.ts",
-  "build": "tsc",
-  "start": "node dist/index.js"
-},
-
+  "scripts": {
+    "dev": "nodemon --ext ts --exec ts-node src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ElissonRochaa/MOBILE-25.1-FindIt-Backend.git"
@@ -21,10 +20,14 @@
   },
   "homepage": "https://github.com/ElissonRochaa/MOBILE-25.1-FindIt-Backend#readme",
   "dependencies": {
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.15.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.1",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/mongoose": "^5.11.97",
     "@types/node": "^22.14.0",
     "nodemon": "^3.1.9",
     "ts-node": "^10.9.2",
