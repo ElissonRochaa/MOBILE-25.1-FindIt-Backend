@@ -2,9 +2,10 @@ import express, { Request, Response } from "express";
 import { connectToDatabase } from "./config/database";
 import authRouter from "./routes/authRoutes";
 import cors from 'cors';
+import postRouter from "./routes/postRoutes";
 
 const app = express();
-const PORT = 8080;
+const PORT = process.env.PORT;
 
 app.use(cors());
 app.use(express.json());
@@ -14,6 +15,7 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 app.use('/api/v1/auth', authRouter); 
+app.use('/api/v1/posts', postRouter); 
 
 const startServer = async () => {
   await connectToDatabase(); 
