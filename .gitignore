@@ -22,3 +22,6 @@ yarn-error.log*
 
 # Ambiente e credenciais
 .env
+
+# pasta de uploads
+uploads
