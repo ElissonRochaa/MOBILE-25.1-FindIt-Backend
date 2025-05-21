@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import Post, { IPost } from '../models/Post';
-import path from 'path'; 
-import fs from 'fs';  
+import path from 'path';
+import fs from 'fs';
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -11,21 +11,18 @@ interface AuthenticatedRequest extends Request {
 
 const UPLOADS_FOLDER = path.join(__dirname, '../../uploads');
 
-
 if (!fs.existsSync(UPLOADS_FOLDER)) {
   fs.mkdirSync(UPLOADS_FOLDER);
 }
 
-
 export const createPost = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const { nomeItem, descricao, data, situacao } = req.body;
-  const usuario = req.user?.id; 
+  const usuario = req.user?.id;
 
   if (!usuario) {
     res.status(401).json({ message: 'Usuário não autenticado.' });
     return;
   }
-
 
   const fotoUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
 
@@ -33,7 +30,7 @@ export const createPost = async (req: AuthenticatedRequest, res: Response): Prom
     const newPost: IPost = new Post({
       nomeItem,
       descricao,
-      data: new Date(data), 
+      data: new Date(data),
       situacao,
       fotoUrl,
       usuario,
@@ -60,10 +57,9 @@ export const createPost = async (req: AuthenticatedRequest, res: Response): Prom
   }
 };
 
-// 2. Obter todos os Posts
 export const getPosts = async (req: Request, res: Response): Promise<void> => {
   try {
-    const posts = await Post.find().populate('usuario', 'nome email'); // Retorna apenas nome e email do usuário
+    const posts = await Post.find().populate('usuario', 'nome email');
     res.status(200).json(posts);
   } catch (error) {
     console.error('Erro ao buscar posts:', error);
@@ -71,7 +67,6 @@ export const getPosts = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-// 3. Obter um Post por ID
 export const getPostById = async (req: Request, res: Response): Promise<void> => {
   try {
     const post = await Post.findById(req.params.id).populate('usuario', 'nome email');
@@ -86,7 +81,6 @@ export const getPostById = async (req: Request, res: Response): Promise<void> =>
   }
 };
 
-// 4. Atualizar um Post
 export const updatePost = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const { nomeItem, descricao, data, situacao } = req.body;
   const postId = req.params.id;
@@ -105,21 +99,17 @@ export const updatePost = async (req: AuthenticatedRequest, res: Response): Prom
       return;
     }
 
-    // Verifica se o usuário autenticado é o criador do post
     if (post.usuario.toString() !== usuarioId) {
       res.status(403).json({ message: 'Você não tem permissão para atualizar este post.' });
       return;
     }
 
-    // Atualiza os campos
     post.nomeItem = nomeItem || post.nomeItem;
     post.descricao = descricao || post.descricao;
     post.data = data ? new Date(data) : post.data;
     post.situacao = situacao || post.situacao;
 
-    // Lida com a atualização da foto (se uma nova for enviada)
     if (req.file) {
-      // Se já existia uma foto, deleta a antiga
       if (post.fotoUrl) {
         const oldPhotoPath = path.join(__dirname, '../..', post.fotoUrl);
         if (fs.existsSync(oldPhotoPath)) {
@@ -148,7 +138,6 @@ export const updatePost = async (req: AuthenticatedRequest, res: Response): Prom
   }
 };
 
-// 5. Deletar um Post
 export const deletePost = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const postId = req.params.id;
   const usuarioId = req.user?.id;
@@ -165,13 +154,12 @@ export const deletePost = async (req: AuthenticatedRequest, res: Response): Prom
       res.status(404).json({ message: 'Post não encontrado.' });
       return;
     }
-    // Verifica se o usuário autenticado é o criador do post
+
     if (post.usuario.toString() !== usuarioId) {
       res.status(403).json({ message: 'Você não tem permissão para deletar este post.' });
       return;
     }
 
-    // Deleta a foto associada, se houver
     if (post.fotoUrl) {
       const photoPath = path.join(__dirname, '../..', post.fotoUrl);
       if (fs.existsSync(photoPath)) {
@@ -179,7 +167,7 @@ export const deletePost = async (req: AuthenticatedRequest, res: Response): Prom
       }
     }
 
-    await post.deleteOne(); // Usa deleteOne() ou remove() para remover o documento
+    await post.deleteOne();
     res.status(200).json({ message: 'Post deletado com sucesso!' });
   } catch (error) {
     console.error('Erro ao deletar post:', error);
