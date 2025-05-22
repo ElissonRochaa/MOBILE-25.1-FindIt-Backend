@@ -41,10 +41,10 @@ const upload = multer({
 
 // Rotas de Post
 // A maioria das rotas de post (exceto talvez GET ALL) deve ser protegida
-postRouter.post('/', protect, upload.single('foto'), createPost); // 'foto' é o nome do campo no formulário
+postRouter.post('/', upload.single('foto'), createPost); // 'foto' é o nome do campo no formulário
 postRouter.get('/', getPosts); // Pode ser público ou protegido, dependendo da sua necessidade
 postRouter.get('/:id', getPostById);
-postRouter.put('/:id', protect, upload.single('foto'), updatePost); // Opcional: permitir atualizar foto
-postRouter.delete('/:id', protect, deletePost);
+postRouter.put('/:id', upload.single('foto'), updatePost); // Opcional: permitir atualizar foto
+postRouter.delete('/:id', deletePost);
 
 export default postRouter;
