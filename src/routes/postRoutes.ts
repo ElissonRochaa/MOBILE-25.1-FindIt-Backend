@@ -15,7 +15,6 @@ const postRouter = Router();
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    // Certifique-se de que a pasta 'uploads' existe na raiz do seu projeto
     cb(null, path.join(__dirname, '../../uploads'));
   },
   filename: function (req, file, cb) {
@@ -23,28 +22,33 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({
-  storage: storage,
-  limits: { fileSize: 1024 * 1024 * 5 }, // Limite de 5MB
-  fileFilter: (req, file, cb) => {
-    const filetypes = /jpeg|jpg|png|gif/;
-    const mimetype = filetypes.test(file.mimetype);
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+const fileFilter = (
+  req: Express.Request,
+  file: Express.Multer.File,
+  cb: multer.FileFilterCallback
+) => {
+  const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+  const allowedExtensions = ['.jpeg', '.jpg', '.png', '.gif'];
+  const ext = path.extname(file.originalname).toLowerCase();
 
-    if (mimetype && extname) {
-      return cb(null, true);
-    } else {
-      cb(new Error('Apenas imagens (jpeg, jpg, png, gif) são permitidas!'));
-    }
-  },
+  if (allowedMimeTypes.includes(file.mimetype) && allowedExtensions.includes(ext)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Apenas imagens (jpeg, jpg, png, gif) são permitidas!'));
+  }
+};
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 1024 * 1024 * 5 }, // 5MB max
+  fileFilter,
 });
 
 // Rotas de Post
-// A maioria das rotas de post (exceto talvez GET ALL) deve ser protegida
-postRouter.post('/', upload.single('foto'), createPost); // 'foto' é o nome do campo no formulário
-postRouter.get('/', getPosts); // Pode ser público ou protegido, dependendo da sua necessidade
+postRouter.post('/', protect, upload.single('foto'), createPost);
+postRouter.get('/', getPosts);
 postRouter.get('/:id', getPostById);
-postRouter.put('/:id', upload.single('foto'), updatePost); // Opcional: permitir atualizar foto
-postRouter.delete('/:id', deletePost);
+postRouter.put('/:id', protect, upload.single('foto'), updatePost);
+postRouter.delete('/:id', protect, deletePost);
 
 export default postRouter;
