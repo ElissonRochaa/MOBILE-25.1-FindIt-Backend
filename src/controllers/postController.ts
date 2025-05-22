@@ -2,17 +2,42 @@ import { Request, Response } from 'express';
 import Post, { IPost } from '../models/Post';
 import path from 'path';
 import fs from 'fs';
+import mongoose from 'mongoose';
+
 
 interface AuthenticatedRequest extends Request {
   user?: {
     id: string;
   };
+  file?: Express.Multer.File;
 }
 
 const UPLOADS_FOLDER = path.join(__dirname, '../../uploads');
 
 if (!fs.existsSync(UPLOADS_FOLDER)) {
   fs.mkdirSync(UPLOADS_FOLDER);
+}
+
+function parseDate(input: string): Date | null {
+  if (!input) return null;
+
+  // Tenta primeiro ISO
+  const isoDate = new Date(input);
+  if (!isNaN(isoDate.getTime())) {
+    return isoDate;
+  }
+
+  // Tenta dd/mm/yyyy
+  const parts = input.split('/');
+  if (parts.length === 3) {
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const year = parseInt(parts[2], 10);
+    const date = new Date(year, month, day);
+    return !isNaN(date.getTime()) ? date : null;
+  }
+
+  return null;
 }
 
 export const createPost = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -24,13 +49,22 @@ export const createPost = async (req: AuthenticatedRequest, res: Response): Prom
     return;
   }
 
+  const parsedDate = parseDate(data);
   const fotoUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
+
+  if (!parsedDate) {
+    if (req.file?.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(400).json({ message: 'Formato de data inválido. Use "dd/mm/yyyy" ou "yyyy-mm-dd".' });
+    return;
+  }
 
   try {
     const newPost: IPost = new Post({
       nomeItem,
       descricao,
-      data: new Date(data),
+      data: parsedDate,
       situacao,
       fotoUrl,
       usuario,
@@ -45,14 +79,16 @@ export const createPost = async (req: AuthenticatedRequest, res: Response): Prom
   } catch (error: any) {
     console.error('Erro ao criar post:', error);
 
-    if (req.file && fs.existsSync(req.file.path)) {
+    if (req.file?.path && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
+
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map((val: any) => val.message);
       res.status(400).json({ message: messages.join(', ') });
       return;
     }
+
     res.status(500).json({ message: 'Erro interno do servidor ao criar post.' });
   }
 };
@@ -68,8 +104,15 @@ export const getPosts = async (req: Request, res: Response): Promise<void> => {
 };
 
 export const getPostById = async (req: Request, res: Response): Promise<void> => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    res.status(400).json({ message: 'ID inválido. O ID deve ser um ObjectId válido do MongoDB.' });
+    return;
+  }
+
   try {
-    const post = await Post.findById(req.params.id).populate('usuario', 'nome email');
+    const post = await Post.findById(id).populate('usuario', 'nome email');
     if (!post) {
       res.status(404).json({ message: 'Post não encontrado.' });
       return;
@@ -104,9 +147,19 @@ export const updatePost = async (req: AuthenticatedRequest, res: Response): Prom
       return;
     }
 
+    const parsedDate = parseDate(data);
+
+    if (data && !parsedDate) {
+      if (req.file?.path && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      res.status(400).json({ message: 'Formato de data inválido. Use "dd/mm/yyyy" ou "yyyy-mm-dd".' });
+      return;
+    }
+
     post.nomeItem = nomeItem || post.nomeItem;
     post.descricao = descricao || post.descricao;
-    post.data = data ? new Date(data) : post.data;
+    post.data = parsedDate || post.data;
     post.situacao = situacao || post.situacao;
 
     if (req.file) {
@@ -126,7 +179,7 @@ export const updatePost = async (req: AuthenticatedRequest, res: Response): Prom
     });
   } catch (error: any) {
     console.error('Erro ao atualizar post:', error);
-    if (req.file && fs.existsSync(req.file.path)) {
+    if (req.file?.path && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
     if (error.name === 'ValidationError') {
