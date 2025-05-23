@@ -98,3 +98,34 @@ export const loginUser: RequestHandler = async (req, res): Promise<void> => {
     return; 
   }
 };
+
+// ...existing code...
+
+export const getUserById: RequestHandler = async (req, res): Promise<void> => {
+  const { id } = req.params;
+
+  try {
+    const user = await User.findById(id).select('-senha');
+    if (!user) {
+      res.status(404).json({ message: 'Usuário não encontrado.' });
+      return;
+    }
+
+    res.status(200).json({
+      user: {
+        id: user._id,
+        nome: user.nome,
+        email: user.email,
+        telefone: user.telefone,
+        curso: user.curso,
+      },
+    });
+    return;
+  } catch (error) {
+    console.error('Erro ao buscar usuário por ID:', error);
+    res.status(500).json({ message: 'Erro interno do servidor ao buscar usuário.' });
+    return;
+  }
+};
+
+// ...existing code...
