@@ -1,131 +1,41 @@
-import { Request, Response, RequestHandler } from 'express'; 
-import User, { IUser } from '../models/User';
+import { RequestHandler } from 'express';
+import User from '../models/User';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
+import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 
 dotenv.config();
-
 const jwtSecret = process.env.JWT_SECRET;
 
 const generateToken = (id: string): string => {
   if (!jwtSecret) {
     throw new Error('JWT_SECRET não está definida nas variáveis de ambiente.');
   }
-  return jwt.sign({ id }, jwtSecret, { expiresIn: '1h' });
+  return jwt.sign({ id }, jwtSecret, { expiresIn: '1d' });
 };
 
-export const registerUser: RequestHandler = async (req, res): Promise<void> => {
-  const { nome, email, senha, telefone, curso } = req.body;
-
-  try {
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      res.status(400).json({ message: 'Este email já está cadastrado.' });
-      return; 
-    }
-
-    const newUser: IUser = new User({
-      nome,
-      email,
-      senha,
-      telefone,
-      curso,
-    });
-
-    await newUser.save();
-
-    const token = generateToken(newUser._id.toString());
-
-    res.status(201).json({
-      message: 'Usuário registrado com sucesso!',
-      user: {
-        id: newUser._id,
-        nome: newUser.nome,
-        email: newUser.email,
-        telefone: newUser.telefone,
-        curso: newUser.curso,
-      },
-      token,
-    });
-    return; 
-  } catch (error: any) {
-    console.error('Erro ao registrar usuário:', error);
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map((val: any) => val.message);
-      res.status(400).json({ message: messages.join(', ') });
-    } else {
-      res.status(500).json({ message: 'Erro interno do servidor ao registrar usuário.' });
-    }
-    return; 
-  }
-};
-
-export const loginUser: RequestHandler = async (req, res): Promise<void> => {
+export const signIn: RequestHandler = async (req, res): Promise<void> => {
   const { email, senha } = req.body;
-
   try {
     const user = await User.findOne({ email }).select('+senha');
-
-    if (!user) {
-      res.status(400).json({ message: 'Credenciais inválidas.' });
-      return; 
-    }
-
-    const isMatch = await user.comparePassword(senha);
-
-    if (!isMatch) {
-      res.status(400).json({ message: 'Credenciais inválidas.' });
-      return; 
-    }
-
-    const token = generateToken(user._id.toString());
-
-    res.status(200).json({
-      message: 'Login realizado com sucesso!',
-      user: {
-        id: user._id,
-        nome: user.nome,
-        email: user.email,
-        telefone: user.telefone,
-        curso: user.curso,
-      },
-      token,
-    });
-    return; 
-  } catch (error) {
-    console.error('Erro ao fazer login:', error);
-    res.status(500).json({ message: 'Erro interno do servidor ao fazer login.' });
-    return; 
-  }
-};
-
-// ...existing code...
-
-export const getUserById: RequestHandler = async (req, res): Promise<void> => {
-  const { id } = req.params;
-
-  try {
-    const user = await User.findById(id).select('-senha');
-    if (!user) {
-      res.status(404).json({ message: 'Usuário não encontrado.' });
+    if (!user || !(await user.comparePassword(senha))) {
+      res.status(401).json({ message: 'Email ou senha inválidos.' });
       return;
     }
 
+    const token = generateToken(user._id.toString());
+    const { senha: _, ...userWithoutPassword } = user.toObject();
+
     res.status(200).json({
-      user: {
-        id: user._id,
-        nome: user.nome,
-        email: user.email,
-        telefone: user.telefone,
-        curso: user.curso,
-      },
+      message: 'Login realizado com sucesso!',
+      user: userWithoutPassword,
+      token,
     });
-    return;
   } catch (error) {
-    console.error('Erro ao buscar usuário por ID:', error);
-    res.status(500).json({ message: 'Erro interno do servidor ao buscar usuário.' });
-    return;
+    res.status(500).json({ message: 'Erro interno do servidor.' });
   }
 };
 
-// ...existing code...
+export const signOut: RequestHandler = async (req: AuthenticatedRequest, res): Promise<void> => {
+  res.status(200).json({ message: 'Logout realizado com sucesso.' });
+};
