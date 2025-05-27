@@ -7,6 +7,7 @@ export interface IUser extends Document {
   nome: string;
   email: string;
   senha: string;
+  profilePicture?: string; 
   telefone?: string;
   curso?: string;
   createdAt: Date; 
@@ -34,6 +35,11 @@ const UserSchema: Schema = new Schema({
     required: [true, 'A senha é obrigatória.'],
     minlength: [6, 'A senha deve ter pelo menos 6 caracteres.'],
     select: false,
+  },
+  profilePicture: {
+    type: String,
+    required: false,
+    default: 'https://i.imgur.com/V4RclNb.png' 
   },
   telefone: {
     type: String,
