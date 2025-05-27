@@ -2,13 +2,7 @@ import { RequestHandler } from 'express';
 import User from '../models/User';
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 
-/**
- * @description Cria um novo usuário (sem imagem de perfil).
- * @route POST /api/v1/users
- */
 export const createUser: RequestHandler = async (req, res): Promise<void> => {
-  // 1. Apenas os dados de texto são recebidos aqui.
-  // A 'profilePicture' será definida com o valor 'default' do nosso Model.
   const { nome, email, senha, telefone, curso } = req.body;
 
   try {
@@ -34,10 +28,6 @@ export const createUser: RequestHandler = async (req, res): Promise<void> => {
   }
 };
 
-/**
- * @description Busca o perfil do usuário atualmente logado.
- * @route GET /api/v1/users/me
- */
 export const getCurrentUserProfile: RequestHandler = async (req: AuthenticatedRequest, res): Promise<void> => {
     try {
         const user = await User.findById(req.user?.id);
@@ -52,10 +42,6 @@ export const getCurrentUserProfile: RequestHandler = async (req: AuthenticatedRe
     }
 };
 
-/**
- * @description Busca um usuário específico pelo ID.
- * @route GET /api/v1/users/:id
- */
 export const getUserById: RequestHandler = async (req, res): Promise<void> => {
   try {
     const user = await User.findById(req.params.id);
@@ -69,14 +55,9 @@ export const getUserById: RequestHandler = async (req, res): Promise<void> => {
   }
 };
 
-/**
- * @description Atualiza as informações de texto do perfil do usuário logado.
- * @route PUT /api/v1/users/me
- */
 export const updateUserProfile: RequestHandler = async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const userId = req.user?.id;
-    // 2. Apenas os dados de texto são atualizados aqui. A foto é atualizada em outra rota.
     const { nome, telefone, curso } = req.body;
 
     const updatedUser = await User.findByIdAndUpdate(
@@ -96,25 +77,19 @@ export const updateUserProfile: RequestHandler = async (req: AuthenticatedReques
   }
 };
 
-/**
- * @description Faz o upload ou atualiza a foto de perfil do usuário logado.
- * @route PUT /api/v1/users/me/photo
- */
 export const updateUserProfilePicture: RequestHandler = async (req: AuthenticatedRequest, res): Promise<void> => {
     try {
-      // 3. O middleware 'multer' nos dá acesso ao 'req.file'.
       if (!req.file) {
         res.status(400).json({ message: 'Nenhum arquivo de imagem foi enviado.' });
         return;
       }
   
-      // 4. Construímos a URL completa para ser salva no banco de dados.
       const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
   
       const updatedUser = await User.findByIdAndUpdate(
         req.user?.id,
         { profilePicture: imageUrl },
-        { new: true } // Retorna o documento atualizado
+        { new: true }
       );
       
       if (!updatedUser) {
@@ -130,10 +105,6 @@ export const updateUserProfilePicture: RequestHandler = async (req: Authenticate
     }
 };
 
-/**
- * @description Deleta a conta do usuário logado.
- * @route DELETE /api/v1/users/me
- */
 export const deleteUserAccount: RequestHandler = async (req: AuthenticatedRequest, res): Promise<void> => {
   try {
     const deletedUser = await User.findByIdAndDelete(req.user?.id);
