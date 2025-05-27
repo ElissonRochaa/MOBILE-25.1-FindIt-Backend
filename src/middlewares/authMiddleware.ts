@@ -7,13 +7,14 @@ dotenv.config();
 
 const jwtSecret = process.env.JWT_SECRET;
 
-interface AuthenticatedRequest extends Request {
+export interface AuthenticatedRequest extends Request { 
   user?: {
     id: string;
   };
 }
 
 export const protect = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+
   let token;
 
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
@@ -25,7 +26,6 @@ export const protect = async (req: AuthenticatedRequest, res: Response, next: Ne
       }
 
       const decoded = jwt.verify(token, jwtSecret) as { id: string };
-
       const user = await User.findById(decoded.id).select('-senha');
 
       if (!user) {
@@ -34,7 +34,6 @@ export const protect = async (req: AuthenticatedRequest, res: Response, next: Ne
       }
 
       req.user = { id: user._id.toString() };
-
       next(); 
 
     } catch (error) {
