@@ -1,5 +1,3 @@
-// src/controllers/postController.ts
-
 import { Request, Response, RequestHandler } from 'express';
 import Post from '../models/Post';
 import path from 'path';
@@ -7,7 +5,6 @@ import fs from 'fs';
 import mongoose from 'mongoose';
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 
-// --- FUNÇÕES DE UTILIDADE ---
 function parseDate(input: string): Date | null {
   if (!input) return null;
   const isoDate = new Date(input);
@@ -21,12 +18,6 @@ function parseDate(input: string): Date | null {
   return null;
 }
 
-// --- CONTROLLERS DO CRUD ---
-
-/**
- * @description Cria um novo post.
- * @route POST /api/v1/posts
- */
 export const createPost: RequestHandler = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const { nomeItem, descricao, data, situacao } = req.body;
   const usuario = req.user?.id;
@@ -57,10 +48,6 @@ export const createPost: RequestHandler = async (req: AuthenticatedRequest, res:
   }
 };
 
-/**
- * @description Atualiza um post existente.
- * @route PUT /api/v1/posts/:id
- */
 export const updatePost: RequestHandler = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const { nomeItem, descricao, data, situacao } = req.body;
     const postId = req.params.id;
@@ -69,12 +56,12 @@ export const updatePost: RequestHandler = async (req: AuthenticatedRequest, res:
     try {
       const post = await Post.findById(postId);
       if (!post) {
-        if (req.file) fs.unlinkSync(req.file.path); // Limpa o arquivo se o post não existir
+        if (req.file) fs.unlinkSync(req.file.path);
         res.status(404).json({ message: 'Post não encontrado.' });
         return;
       }
       if (post.usuario.toString() !== usuarioId) {
-        if (req.file) fs.unlinkSync(req.file.path); // Limpa o arquivo se não houver permissão
+        if (req.file) fs.unlinkSync(req.file.path);
         res.status(403).json({ message: 'Você não tem permissão para atualizar este post.' });
         return;
       }
@@ -104,10 +91,6 @@ export const updatePost: RequestHandler = async (req: AuthenticatedRequest, res:
     }
 };
 
-/**
- * @description Deleta um post.
- * @route DELETE /api/v1/posts/:id
- */
 export const deletePost: RequestHandler = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const postId = req.params.id;
     const usuarioId = req.user?.id;
@@ -139,12 +122,6 @@ export const deletePost: RequestHandler = async (req: AuthenticatedRequest, res:
     }
 };
 
-// --- FUNÇÕES 'GET' QUE NÃO PRECISAVAM DE MUDANÇA (AGORA DEFINIDAS CORRETAMENTE) ---
-
-/**
- * @description Busca todos os posts.
- * @route GET /api/v1/posts
- */
 export const getPosts: RequestHandler = async (req: Request, res: Response): Promise<void> => {
     try {
       const posts = await Post.find().sort({ createdAt: -1 }).populate('usuario', 'nome email profilePicture');
@@ -155,10 +132,6 @@ export const getPosts: RequestHandler = async (req: Request, res: Response): Pro
     }
 };
 
-/**
- * @description Busca um post específico pelo seu ID.
- * @route GET /api/v1/posts/:id
- */
 export const getPostById: RequestHandler = async (req: Request, res: Response): Promise<void> => {
     const { id } = req.params;
   
