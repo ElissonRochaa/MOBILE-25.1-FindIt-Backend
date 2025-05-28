@@ -1,51 +1,61 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
+/**
+ * Interface para tipagem forte do documento do Post,
+ * incluindo o novo status 'resolvido'.
+ */
 export interface IPost extends Document {
-  _id: mongoose.Types.ObjectId;
+  autor: mongoose.Schema.Types.ObjectId;
+  fotoUrl: string;
   nomeItem: string;
   descricao: string;
-  data: Date;
-  situacao: 'achado' | 'perdido';
-  fotoUrl?: string;
-  usuario: mongoose.Types.ObjectId;
+  dataOcorrencia: Date;
+  situacao: 'perdido' | 'achado' | 'resolvido';
+  comentarios: mongoose.Schema.Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
-  __v: number;
 }
 
-const PostSchema: Schema = new Schema({
-  nomeItem: {
-    type: String,
-    required: [true, 'O nome do item é obrigatório.'],
-    trim: true,
+const PostSchema: Schema = new Schema(
+  {
+    autor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User', // Referência ao model de Usuário
+      required: true,
+    },
+    fotoUrl: {
+      type: String,
+      required: true,
+    },
+    nomeItem: {
+      type: String,
+      required: [true, 'O nome do item é obrigatório.'],
+    },
+    descricao: {
+      type: String,
+      required: [true, 'A descrição é obrigatória.'],
+    },
+    dataOcorrencia: {
+      type: Date,
+      required: [true, 'A data da ocorrência é obrigatória.'],
+    },
+    situacao: {
+      type: String,
+      enum: ['perdido', 'achado', 'resolvido'], // Enum atualizado
+      default: 'perdido', // Um valor padrão é uma boa prática
+      required: [true, 'A situação (perdido ou achado) é obrigatória.'],
+    },
+    comentarios: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Comment', // Array de referências ao model de Comentário
+      },
+    ],
   },
-  descricao: {
-    type: String,
-    required: [true, 'A descrição é obrigatória.'],
-    trim: true,
-  },
-  data: {
-    type: Date,
-    required: [true, 'A data é obrigatória.'],
-  },
-  situacao: {
-    type: String,
-    enum: ['achado', 'perdido'],
-    required: [true, 'A situação é obrigatória (achado/perdido).'],
-  },
-  fotoUrl: {
-    type: String,
-    required: false,
-  },
-  usuario: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: [true, 'O usuário criador do post é obrigatório.'],
-  },
-}, {
-  timestamps: true,
-});
+  {
+    // Adiciona os campos createdAt e updatedAt automaticamente
+    timestamps: true,
+  }
+);
 
-const Post = mongoose.model<IPost>('Post', PostSchema);
-
-export default Post;
+export default mongoose.model<IPost>('Post', PostSchema);
