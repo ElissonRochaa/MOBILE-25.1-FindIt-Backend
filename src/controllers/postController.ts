@@ -2,6 +2,7 @@ import { RequestHandler } from 'express';
 import Post from '../models/Post';
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import Comment from '../models/Comment';
+import { getIo } from '../socket';
 
 // Função auxiliar para tratamento de erros
 const handleError = (res: any, error: any, message: string) => {
@@ -20,7 +21,7 @@ const handleError = (res: any, error: any, message: string) => {
 export const createPost: RequestHandler = async (req: AuthenticatedRequest, res): Promise<void> => {
     try {
         const { nomeItem, descricao, dataOcorrencia, situacao } = req.body;
-        const autor = req.user?.id; // ID do usuário autenticado
+        const autor = req.user?.id;
 
         if (!req.file) {
             res.status(400).json({ message: 'A imagem do post é obrigatória.' });
@@ -39,12 +40,28 @@ export const createPost: RequestHandler = async (req: AuthenticatedRequest, res)
         });
 
         await newPost.save();
-        res.status(201).json(newPost);
+
+        // --- INÍCIO DA LÓGICA DE NOTIFICAÇÃO ---
+        const io = getIo();
+        // Popula o autor para ter nome e foto na notificação
+        const populatedPostForNotification = await Post.findById(newPost._id)
+            .populate('autor', 'nome profilePicture'); 
+
+        if (populatedPostForNotification) {
+            io.emit('newPostNotification', populatedPostForNotification); // Emite para TODOS os clientes conectados
+            console.log('Backend: Evento newPostNotification emitido:', populatedPostForNotification.nomeItem);
+        }
+        // --- FIM DA LÓGICA DE NOTIFICAÇÃO ---
+
+        res.status(201).json(newPost); // Retorna o post original para o criador
 
     } catch (error) {
-        handleError(res, error, 'Erro ao criar post:');
+        // handleError(res, error, 'Erro ao criar post:'); // Comentei para usar o seu, se existir
+        console.error('Erro ao criar post:', error);
+        res.status(500).json({ message: 'Erro interno ao criar post.'});
     }
 };
+
 
 /**
  * Lista todos os posts que NÃO estão marcados como "resolvido".
