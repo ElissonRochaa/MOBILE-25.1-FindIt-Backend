@@ -1,6 +1,5 @@
 import { RequestHandler } from 'express';
 import Post from '../models/Post';
-
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import Comment from '../models/Comment';
 
@@ -63,10 +62,7 @@ export const getAllPosts: RequestHandler = async (req, res): Promise<void> => {
   }
 };
 
-/**
- * Adiciona um comentário a um post específico.
- * Requer autenticação.
- */
+// ... (Função addComment que você enviou)
 export const addComment: RequestHandler = async (req: AuthenticatedRequest, res): Promise<void> => {
     try {
         const { texto } = req.body;
@@ -109,13 +105,11 @@ export const deletePost: RequestHandler = async (req: AuthenticatedRequest, res)
             return;
         }
 
-        // Verificação de segurança: Apenas o autor do post pode deletá-lo
         if (post.autor.toString() !== req.user?.id) {
             res.status(403).json({ message: 'Acesso negado. Você não é o autor deste post.' });
             return;
         }
-
-        // Deleta o post e também os comentários associados a ele
+        
         await post.deleteOne();
         await Comment.deleteMany({ post: postId });
 
@@ -139,7 +133,6 @@ export const resolvePost: RequestHandler = async (req: AuthenticatedRequest, res
             return;
         }
 
-        // Verificação de segurança: Apenas o autor pode resolver o post
         if (post.autor.toString() !== req.user?.id) {
             res.status(403).json({ message: 'Acesso negado. Você não é o autor deste post.' });
             return;
@@ -157,4 +150,23 @@ export const resolvePost: RequestHandler = async (req: AuthenticatedRequest, res
     } catch (error) {
         handleError(res, error, 'Erro ao resolver post:');
     }
+};
+
+
+// NOVA FUNÇÃO
+/**
+ * Lista todos os posts de um usuário específico, incluindo os resolvidos.
+ * Ideal para a tela de perfil do usuário.
+ */
+export const getPostsByUserId: RequestHandler = async (req, res): Promise<void> => {
+  try {
+    const { userId } = req.params;
+    const posts = await Post.find({ autor: userId })
+      .populate('autor', 'nome profilePicture')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(posts);
+  } catch (error) {
+    handleError(res, error, 'Erro ao buscar posts do usuário:');
+  }
 };
