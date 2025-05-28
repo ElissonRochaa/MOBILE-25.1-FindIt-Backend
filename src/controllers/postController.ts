@@ -1,154 +1,160 @@
-import { Request, Response, RequestHandler } from 'express';
+import { RequestHandler } from 'express';
 import Post from '../models/Post';
-import path from 'path';
-import fs from 'fs';
-import mongoose from 'mongoose';
+
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
+import Comment from '../models/Comment';
 
-function parseDate(input: string): Date | null {
-  if (!input) return null;
-  const isoDate = new Date(input);
-  if (!isNaN(isoDate.getTime())) return isoDate;
-  const parts = input.split('/');
-  if (parts.length === 3) {
-    const [day, month, year] = parts.map(Number);
-    const date = new Date(year, month - 1, day);
-    return !isNaN(date.getTime()) ? date : null;
-  }
-  return null;
-}
-
-export const createPost: RequestHandler = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  const { nomeItem, descricao, data, situacao } = req.body;
-  const usuario = req.user?.id;
-  
-  const parsedDate = parseDate(data);
-  if (!parsedDate) {
-    res.status(400).json({ message: 'Formato de data inválido. Use "dd/mm/yyyy" ou "yyyy-mm-dd".' });
-    return;
-  }
-
-  const fotoUrl = req.file 
-    ? `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}` 
-    : undefined;
-
-  try {
-    const newPost = new Post({ nomeItem, descricao, data: parsedDate, situacao, fotoUrl, usuario });
-    await newPost.save();
-    res.status(201).json({ message: 'Post criado com sucesso!', post: newPost });
-  } catch (error: any) {
-    if (req.file) { fs.unlinkSync(req.file.path); }
-    console.error('Erro ao criar post:', error);
+// Função auxiliar para tratamento de erros
+const handleError = (res: any, error: any, message: string) => {
+    console.error(message, error);
     if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map((val: any) => val.message);
-      res.status(400).json({ message: messages.join(', ') });
-    } else {
-      res.status(500).json({ message: 'Erro interno do servidor.' });
+        const messages = Object.values(error.errors).map((val: any) => val.message);
+        return res.status(400).json({ message: messages.join(', ') });
     }
+    return res.status(500).json({ message: 'Erro interno do servidor.' });
+};
+
+/**
+ * Cria um novo post.
+ * Requer autenticação e um arquivo de imagem.
+ */
+export const createPost: RequestHandler = async (req: AuthenticatedRequest, res): Promise<void> => {
+    try {
+        const { nomeItem, descricao, dataOcorrencia, situacao } = req.body;
+        const autor = req.user?.id; // ID do usuário autenticado
+
+        if (!req.file) {
+            res.status(400).json({ message: 'A imagem do post é obrigatória.' });
+            return;
+        }
+
+        const fotoUrl = `${req.protocol}://${req.get('host')}/uploads/posts/${req.file.filename}`;
+
+        const newPost = new Post({
+            autor,
+            fotoUrl,
+            nomeItem,
+            descricao,
+            dataOcorrencia,
+            situacao,
+        });
+
+        await newPost.save();
+        res.status(201).json(newPost);
+
+    } catch (error) {
+        handleError(res, error, 'Erro ao criar post:');
+    }
+};
+
+/**
+ * Lista todos os posts que NÃO estão marcados como "resolvido".
+ * Ideal para o feed principal da aplicação.
+ */
+export const getAllPosts: RequestHandler = async (req, res): Promise<void> => {
+  try {
+    // Filtra para que a situação seja diferente de 'resolvido'
+    const posts = await Post.find({ situacao: { $ne: 'resolvido' } })
+      .populate('autor', 'nome profilePicture') // Popula o autor com nome e foto
+      .sort({ createdAt: -1 }); // Ordena do mais novo para o mais antigo
+    res.status(200).json(posts);
+  } catch (error) {
+    handleError(res, error, 'Erro ao buscar posts:');
   }
 };
 
-export const updatePost: RequestHandler = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    const { nomeItem, descricao, data, situacao } = req.body;
-    const postId = req.params.id;
-    const usuarioId = req.user?.id;
-  
+/**
+ * Adiciona um comentário a um post específico.
+ * Requer autenticação.
+ */
+export const addComment: RequestHandler = async (req: AuthenticatedRequest, res): Promise<void> => {
     try {
-      const post = await Post.findById(postId);
-      if (!post) {
-        if (req.file) fs.unlinkSync(req.file.path);
-        res.status(404).json({ message: 'Post não encontrado.' });
-        return;
-      }
-      if (post.usuario.toString() !== usuarioId) {
-        if (req.file) fs.unlinkSync(req.file.path);
-        res.status(403).json({ message: 'Você não tem permissão para atualizar este post.' });
-        return;
-      }
-  
-      post.nomeItem = nomeItem || post.nomeItem;
-      post.descricao = descricao || post.descricao;
-      post.situacao = situacao || post.situacao;
-      if (data) post.data = parseDate(data) || post.data;
-  
-      if (req.file) {
-        if (post.fotoUrl) {
-          const oldPhotoName = path.basename(post.fotoUrl);
-          const oldPhotoPath = path.join('uploads', oldPhotoName);
-          if (fs.existsSync(oldPhotoPath)) {
-            fs.unlinkSync(oldPhotoPath);
-          }
+        const { texto } = req.body;
+        const autor = req.user?.id;
+        const { postId } = req.params;
+
+        const newComment = new Comment({ post: postId, autor, texto });
+        await newComment.save();
+
+        const post = await Post.findByIdAndUpdate(
+            postId,
+            { $push: { comentarios: newComment._id } },
+            { new: true }
+        );
+
+        if (!post) {
+            res.status(404).json({ message: "Post não encontrado."});
+            return;
         }
-        post.fotoUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-      }
-  
-      const updatedPost = await post.save();
-      res.status(200).json({ message: 'Post atualizado com sucesso!', post: updatedPost });
-    } catch (error: any) {
-      if (req.file) { fs.unlinkSync(req.file.path); }
-      console.error('Erro ao atualizar post:', error);
-      res.status(500).json({ message: 'Erro interno do servidor.' });
+
+        const populatedComment = await newComment.populate('autor', 'nome profilePicture');
+        res.status(201).json(populatedComment);
+
+    } catch (error) {
+        handleError(res, error, 'Erro ao adicionar comentário:');
     }
 };
 
-export const deletePost: RequestHandler = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    const postId = req.params.id;
-    const usuarioId = req.user?.id;
-
+/**
+ * Deleta um post.
+ * Requer autenticação e que o usuário seja o dono do post.
+ */
+export const deletePost: RequestHandler = async (req: AuthenticatedRequest, res): Promise<void> => {
     try {
+        const { postId } = req.params;
         const post = await Post.findById(postId);
+
         if (!post) {
             res.status(404).json({ message: 'Post não encontrado.' });
             return;
         }
-        if (post.usuario.toString() !== usuarioId) {
-            res.status(403).json({ message: 'Você não tem permissão para deletar este post.' });
+
+        // Verificação de segurança: Apenas o autor do post pode deletá-lo
+        if (post.autor.toString() !== req.user?.id) {
+            res.status(403).json({ message: 'Acesso negado. Você não é o autor deste post.' });
             return;
         }
 
-        if (post.fotoUrl) {
-            const photoName = path.basename(post.fotoUrl);
-            const photoPath = path.join('uploads', photoName);
-            if (fs.existsSync(photoPath)) {
-                fs.unlinkSync(photoPath);
-            }
+        // Deleta o post e também os comentários associados a ele
+        await post.deleteOne();
+        await Comment.deleteMany({ post: postId });
+
+        res.status(200).json({ message: 'Post deletado com sucesso.' });
+    } catch (error) {
+        handleError(res, error, 'Erro ao deletar post:');
+    }
+};
+
+/**
+ * Marca um post como "resolvido".
+ * Requer autenticação e que o usuário seja o dono do post.
+ */
+export const resolvePost: RequestHandler = async (req: AuthenticatedRequest, res): Promise<void> => {
+    try {
+        const { postId } = req.params;
+        const post = await Post.findById(postId);
+
+        if (!post) {
+            res.status(404).json({ message: 'Post não encontrado.' });
+            return;
         }
 
-        await post.deleteOne();
-        res.status(200).json({ message: 'Post deletado com sucesso!' });
-    } catch (error) {
-        console.error('Erro ao deletar post:', error);
-        res.status(500).json({ message: 'Erro interno do servidor.' });
-    }
-};
+        // Verificação de segurança: Apenas o autor pode resolver o post
+        if (post.autor.toString() !== req.user?.id) {
+            res.status(403).json({ message: 'Acesso negado. Você não é o autor deste post.' });
+            return;
+        }
 
-export const getPosts: RequestHandler = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const posts = await Post.find().sort({ createdAt: -1 }).populate('usuario', 'nome email profilePicture');
-      res.status(200).json(posts);
-    } catch (error) {
-      console.error('Erro ao buscar posts:', error);
-      res.status(500).json({ message: 'Erro interno do servidor ao buscar posts.' });
-    }
-};
+        if (post.situacao === 'resolvido') {
+            res.status(400).json({ message: 'Este post já está marcado como resolvido.' });
+            return;
+        }
 
-export const getPostById: RequestHandler = async (req: Request, res: Response): Promise<void> => {
-    const { id } = req.params;
-  
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      res.status(400).json({ message: 'ID de post inválido.' });
-      return;
-    }
-  
-    try {
-      const post = await Post.findById(id).populate('usuario', 'nome email profilePicture');
-      if (!post) {
-        res.status(404).json({ message: 'Post não encontrado.' });
-        return;
-      }
-      res.status(200).json(post);
+        post.situacao = 'resolvido';
+        await post.save();
+
+        res.status(200).json({ message: 'Post marcado como resolvido!', post });
     } catch (error) {
-      console.error('Erro ao buscar post por ID:', error);
-      res.status(500).json({ message: 'Erro interno do servidor ao buscar post.' });
+        handleError(res, error, 'Erro ao resolver post:');
     }
 };
