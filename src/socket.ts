@@ -23,7 +23,8 @@ export const initSocket = (httpServer: HttpServer) => {
   });
 
   io.use((socket: AuthenticatedSocket, next) => {
-    const token = socket.handshake.auth.token;
+    
+    const token = (socket.handshake.auth as any)?.token || socket.handshake.query.token;
 
     if (!token) {
       return next(new Error('Autenticação falhou: Token não fornecido.'));
