@@ -1,29 +1,32 @@
-import { Router } from 'express';
-import { protect } from '../middlewares/authMiddleware';
-import upload from '../middlewares/uploadMiddleware';
-import { 
+import express from 'express';
+import {
     createUser,
-    getUserById, 
-    getCurrentUserProfile, 
-    updateUserProfile, 
-    deleteUserAccount,
-    updateUserProfilePicture 
+    getCurrentUserProfile,
+    getUserById,
+    updateUserProfile,
+    updateUserProfilePicture,
+    deleteUserAccount
 } from '../controllers/userController';
+import { protect } from '../middlewares/authMiddleware';
+import { upload } from '../middlewares/uploadMiddleware';
 
-const userRouter = Router();
+const router = express.Router();
 
-userRouter.post('/', createUser);
-userRouter.get('/me', protect, getCurrentUserProfile);
-userRouter.put('/me', protect, updateUserProfile);
-userRouter.delete('/me', protect, deleteUserAccount);
+router.post('/', upload('users').single('profilePicture'), createUser);
 
-userRouter.put(
-    '/me/photo', 
+// Rotas protegidas (requerem autenticação)
+router.get('/profile', protect, getCurrentUserProfile);
+router.put('/profile', protect, updateUserProfile);
+router.delete('/profile', protect, deleteUserAccount);
+
+// Rota para atualizar a foto de perfil
+router.put(
+    '/profile/picture',
     protect,
-    upload.single('profilePicture'),
+    upload('users').single('profilePicture'),
     updateUserProfilePicture
 );
 
-userRouter.get('/:id', protect, getUserById);
+router.get('/:id', protect, getUserById);
 
-export default userRouter;
+export default router;

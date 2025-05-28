@@ -1,26 +1,32 @@
-import { Router } from 'express';
-
-import { protect } from '../middlewares/authMiddleware';
-
-import upload from '../middlewares/uploadMiddleware';
-
-
+import express from 'express';
 import {
   createPost,
-  getPosts,
-  getPostById,
-  updatePost,
+  getAllPosts,
   deletePost,
+  resolvePost,
 } from '../controllers/postController';
+import { protect } from '../middlewares/authMiddleware';
+import { upload } from '../middlewares/uploadMiddleware';
+import commentRouter from './commentRoutes'; // Importa o router de comentários
 
-const postRouter = Router();
-postRouter.get('/', getPosts);
+const router = express.Router();
 
-postRouter.get('/:id', getPostById);
+// Aninha as rotas de comentários sob as rotas de post
+// Qualquer requisição para /:postId/comments será redirecionada para o commentRouter
+router.use('/:postId/comments', commentRouter);
 
+// --- Rotas Principais de Posts ---
 
-postRouter.post('/', protect, upload.single('foto'), createPost);
-postRouter.put('/:id', protect, upload.single('foto'), updatePost);
-postRouter.delete('/:id', protect, deletePost);
+// POST /api/v1/posts -> Criar um novo post
+router.post('/', protect, upload('posts').single('foto'), createPost);
 
-export default postRouter;
+// GET /api/v1/posts -> Listar todos os posts ativos
+router.get('/', getAllPosts);
+
+// DELETE /api/v1/posts/:postId -> Deletar um post específico
+router.delete('/:postId', protect, deletePost);
+
+// PATCH /api/v1/posts/:postId/resolve -> Marcar um post como resolvido
+router.patch('/:postId/resolve', protect, resolvePost);
+
+export default router;
