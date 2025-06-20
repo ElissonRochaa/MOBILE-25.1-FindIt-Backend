@@ -1,6 +1,10 @@
+// src/controllers/userController.ts
+
 import { RequestHandler } from 'express';
 import User from '../models/User';
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
+import sendEmail from '../utils/email';
+import crypto from 'crypto'; // Importe crypto para hashear tokens
 
 // Função auxiliar para tratamento de erros
 const handleError = (res: any, error: any, message: string) => {
@@ -133,5 +137,68 @@ export const deleteUserAccount: RequestHandler = async (req: AuthenticatedReques
         res.status(200).json({ message: 'Sua conta foi deletada com sucesso.' });
     } catch (error) {
         handleError(res, error, 'Erro ao deletar conta:');
+    }
+};
+
+// POST /api/v1/users/forgot-password - Solicitar recuperação de senha (SIMPLIFICADO E INSEGURO)
+export const forgotPassword: RequestHandler = async (req, res): Promise<void> => {
+    try {
+        const { email } = req.body;
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            // Não revele se o email existe por segurança (boa prática), mas para faculdade pode ser ok.
+            // Aqui, mantemos a mensagem original para não mudar muito o comportamento esperado.
+            res.status(404).json({ message: 'Não há usuário cadastrado com este email.' });
+            return;
+        }
+
+        // NÃO GERAMOS NEM SALVAMOS TOKEN NO DB AQUI
+
+        // O link no email APENAS passará o email do usuário na URL (INSEGURO)
+        const resetURL = `${req.protocol}://${req.get('host')}/reset-password-web?email=${encodeURIComponent(email)}`;
+        const message = `Você solicitou uma redefinição de senha. Use este link para definir sua nova senha: ${resetURL}\n\nSe você não solicitou isso, por favor, ignore este e-mail.`;
+
+        try {
+            await sendEmail({
+                email: user.email,
+                subject: 'Redefinição de Senha',
+                message,
+            });
+
+            res.status(200).json({ message: 'Um link para redefinição de senha foi enviado para o seu e-mail.' });
+        } catch (emailError: any) {
+            handleError(res, emailError, 'Erro ao enviar o email de redefinição de senha.');
+        }
+
+    } catch (error: any) {
+        handleError(res, error, 'Erro no processo de solicitação de recuperação de senha:');
+    }
+};
+
+// PATCH /api/v1/users/reset-password - Redefinir senha (SIMPLIFICADO E INSEGURO)
+export const resetPassword: RequestHandler = async (req, res): Promise<void> => {
+    try {
+        const { email, password } = req.body; // Agora esperamos o EMAIL e a NOVA SENHA
+        // O TOKEN na URL (req.params.token) NÃO SERÁ USADO POR ESTA FUNÇÃO.
+        // A requisição virá diretamente do JS do formulário HTML que enviará o email e a nova senha.
+
+        const user = await User.findOne({ email }).select('+senha'); // Seleciona a senha para atualização
+
+        if (!user) {
+            res.status(400).json({ message: 'Email não encontrado ou inválido para redefinição.' });
+            return;
+        }
+
+        // AQUI ESTÁ A INSEGURANÇA: Se o email e a nova senha chegam, ele redefine sem validação de token.
+        user.senha = password; // O middleware `hashPassword` irá hashear esta nova senha antes de salvar
+
+        await user.save(); // Salva a nova senha (será hasheada pelo pre-save hook)
+
+        res.status(200).json({ message: 'Sua senha foi redefinida com sucesso! Você já pode fazer login com a nova senha.' });
+
+    } catch (error: any) {
+        console.error('Erro na função resetPassword (SIMPLIFICADA):', error);
+        handleError(res, error, 'Erro ao redefinir a senha.');
     }
 };

@@ -1,3 +1,6 @@
+// src/middlewares/passwordHashMiddleware.ts
+
+import { NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import { CallbackWithoutResultAndOptionalError } from 'mongoose';
 import { IUser } from '../models/User';

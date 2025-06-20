@@ -1,19 +1,28 @@
+// src/models/User.ts
+
 import mongoose, { Document, Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { hashPassword } from '../middlewares/passwordHashMiddleware';
+// import crypto from 'crypto'; // Remova esta importação
 
 export interface IUser extends Document {
-  _id: mongoose.Types.ObjectId; 
+  _id: mongoose.Types.ObjectId;
   nome: string;
   email: string;
   senha: string;
-  profilePicture?: string; 
+  profilePicture?: string;
   telefone?: string;
   curso?: string;
-  createdAt: Date; 
-  updatedAt: Date; 
-  __v: number;     
+  createdAt: Date;
+  updatedAt: Date;
+  __v: number;
+  // REMOVER ESTES CAMPOS
+  // passwordResetToken?: string;
+  // passwordResetExpires?: Date;
+
   comparePassword(candidatePassword: string): Promise<boolean>;
+  // REMOVER ESTE MÉTODO
+  // createPasswordResetToken(): string;
 }
 
 const UserSchema: Schema = new Schema({
@@ -39,7 +48,7 @@ const UserSchema: Schema = new Schema({
   profilePicture: {
     type: String,
     required: false,
-    default: 'https://i.imgur.com/V4RclNb.png' 
+    default: 'https://i.imgur.com/V4RclNb.png'
   },
   telefone: {
     type: String,
@@ -60,6 +69,8 @@ UserSchema.pre<IUser>('save', hashPassword);
 UserSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
   return bcrypt.compare(candidatePassword, this.senha);
 };
+
+
 
 const User = mongoose.model<IUser>('User', UserSchema);
 

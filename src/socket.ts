@@ -59,11 +59,11 @@ export const initSocket = (httpServer: HttpServer) => {
           console.log(`Socket ${socket.id} (UserID: ${socket.user?.id}) entrou na sala ${conversationId}`);
         } else {
           console.log(`Socket ${socket.id} (UserID: ${socket.user?.id}) tentou entrar na sala ${conversationId} sem permissão.`);
-          socket.emit('auth_error', { message: 'Acesso negado a esta sala.' });
+          // socket.emit('auth_error', { message: 'Acesso negado a esta sala.' });
         }
       } catch (error) {
         console.error('Erro ao entrar na sala:', error);
-        socket.emit('error', { message: 'Erro interno ao processar sua solicitação.' });
+        // socket.emit('error', { message: 'Erro interno ao processar sua solicitação.' });
       }
     });
 
